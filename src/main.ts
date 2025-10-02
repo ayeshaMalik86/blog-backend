@@ -1,9 +1,10 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { NestApplication } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { AuthService } from './auth/auth.service';
 
-let app: any;
+let app: NestApplication;
 
 async function bootstrap() {
   if (!app) {
@@ -29,8 +30,12 @@ async function bootstrap() {
       }),
     );
 
-    const authService = app.get(AuthService);
-    await authService.createDefaultAdmin();
+    try {
+      const authService = app.get(AuthService);
+      await authService.createDefaultAdmin();
+    } catch (error) {
+      console.error('Error creating default admin:', error);
+    }
 
     await app.init();
   }
@@ -39,12 +44,23 @@ async function bootstrap() {
 
 // For Vercel serverless
 if (process.env.NODE_ENV === 'production') {
-  bootstrap().then(app => {
-    module.exports = app.getHttpAdapter().getInstance();
-  });
+  let cachedApp: NestApplication;
+
+  module.exports = async (req: any, res: any) => {
+    try {
+      if (!cachedApp) {
+        cachedApp = await bootstrap();
+      }
+      const server = cachedApp.getHttpAdapter().getInstance();
+      server(req, res);
+    } catch (error) {
+      console.error('Serverless function error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  };
 } else {
   // For local development
-  bootstrap().then(app => {
+  void bootstrap().then((app) => {
     const port = process.env.PORT || 3000;
     app.listen(port);
   });
