@@ -1,11 +1,11 @@
-import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
-import { AppModule } from './app.module';
-import { AuthService } from './auth/auth.service';
+const { NestFactory } = require('@nestjs/core');
+const { AppModule } = require('../dist/app.module');
+const { ValidationPipe } = require('@nestjs/common');
+const { AuthService } = require('../dist/auth/auth.service');
 
-let app: any;
+let app;
 
-async function bootstrap() {
+async function createApp() {
   if (!app) {
     app = await NestFactory.create(AppModule);
 
@@ -37,15 +37,8 @@ async function bootstrap() {
   return app;
 }
 
-// For Vercel serverless
-if (process.env.NODE_ENV === 'production') {
-  bootstrap().then(app => {
-    module.exports = app.getHttpAdapter().getInstance();
-  });
-} else {
-  // For local development
-  bootstrap().then(app => {
-    const port = process.env.PORT || 3000;
-    app.listen(port);
-  });
-}
+module.exports = async (req, res) => {
+  const nestApp = await createApp();
+  const server = nestApp.getHttpAdapter().getInstance();
+  server(req, res);
+};
